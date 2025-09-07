@@ -1,9 +1,15 @@
-use crate::structures::{AstNode, Database};
+use crate::structures::{AstNode, Database, ActiveDataBase};
 use std::fs::File;
-use serde::{Serialize, Deserialize};
-use rmp_serde::{encode, decode};
-use crate::parser::{Rule, parse_input};
+use crate::parser::Rule;
 use std::io::Write;
+
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    pub static ref ACTIVE_DB: Mutex<Option<ActiveDataBase>> = Mutex::new(None);
+}
+
 
 fn db_initialise(name: String) -> Database{
     let db = Database{
@@ -23,6 +29,17 @@ pub fn execute(ast: AstNode) {
             let buf = rmp_serde::to_vec(&new_db).unwrap();
             data_file.write_all(&buf).expect("write failed");
             print!("New database {} created and selected!\n", name);
+        }
+
+        AstNode::OpenRDB { name}=>{
+            match ActiveDataBase::open(&name) {
+                Ok(active) => {
+                    println!("Opened database: {}", active.active_db.name);
+                }
+                Err(_) => {
+                    panic!("Problem opening the data file. Create a new database!\nType 'help' to see how");
+                }
+            }
         }
         
         AstNode::MakeTable { name, columns } => {
@@ -65,7 +82,17 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
             .as_str()
             .to_string();
         AstNode::MakeRDB { name: name_db }
-    }
+        }
+        Rule::open_rdb =>{
+            let mut inner = pair.into_inner();
+            let name_db = inner
+                .next()
+                .expect("expected dbname")   // unwrap safely
+                .as_str()
+                .to_string();
+            AstNode::OpenRDB { name: (name_db) }
+        }
+
         Rule::make_table => {
             let mut inner = pair.into_inner();
             let name = inner.next().unwrap().as_str().to_string();

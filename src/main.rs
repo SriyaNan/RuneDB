@@ -4,14 +4,6 @@ use execution::{execute, build_ast};
 pub mod execution;
 mod structures;
 use std::io::{self, Write};
-use std::fs::File;
-
-
-// #[derive(Debug)]
-// pub struct Active_DataBase{
-//      path: str,
-
-// }
 
 fn main() {
     const HELP: &str = "Functionalities ->
