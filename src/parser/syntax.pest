@@ -1,0 +1,29 @@
+main = { make_table | put | pick | conditional_pick | make_rdb | open_rdb}
+
+make_table = { "make table" ~ table_name ~ "(" ~ attribute ~ ")" }
+put = { table_name ~ ".add" ~ "(" ~ assignments ~ ")"}
+pick = { table_name ~ ".pick" ~ "(" ~ selectives ~ ")"}
+conditional_pick = { table_name ~ ".pick" ~ "((" ~ selectives ~ ")" ~ "where" ~ "(" ~ condition ~ "))" }
+
+table_name = @{ ASCII_ALPHANUMERIC+ }
+assignments = { assignment ~ ("," ~ assignment)* }
+assignment = { att_name ~ "=" ~ value }
+value = @{ASCII_ALPHANUMERIC+}
+
+attribute = { att_def ~ ("," ~ att_def)* }
+att_def = { att_name ~ ":" ~ datatype }
+att_name = @{ ASCII_ALPHANUMERIC+ }
+datatype = @{ "string" | "int" | "float" }
+
+selectives = { selective ~ ("," ~ selective)* }
+selective = @{ ASCII_ALPHANUMERIC+ | "*" }
+
+condition = { cond ~ ("," ~ cond)* }
+cond = { att_name ~ op ~ value }
+op ={"=="|"<"|">"|"<="|">="|"!="}
+dbname = @{ASCII_ALPHANUMERIC+}
+make_rdb = {"make rdb " ~ dbname}
+
+open_rdb = {"open rdb " ~ dbname }
+
+WHITESPACE = _{ " " | "\t" | NEWLINE }
