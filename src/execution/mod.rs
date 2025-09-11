@@ -3,6 +3,7 @@ use std::fs::File;
 use crate::parser::Rule;
 use std::io::Write;
 
+
 use std::sync::Mutex;
 use lazy_static::lazy_static;
 
@@ -10,9 +11,11 @@ lazy_static! {
     pub static ref ACTIVE_DB: Mutex<Option<ActiveDataBase>> = Mutex::new(None);
 }
 
+const PAGE_SIZE: usize = 4096;
+
 
 fn db_initialise(name: String) -> Database{
-    let db = Database{
+    let mut db = Database{
         tables : 0,
         name : name,
         table_details : Vec::new(),
@@ -34,7 +37,9 @@ pub fn execute(ast: AstNode) {
         AstNode::OpenRDB { name}=>{
             match ActiveDataBase::open(&name) {
                 Ok(active) => {
-                    println!("Opened database: {}", active.active_db.name);
+                    let mut db_guard = ACTIVE_DB.lock().unwrap();
+                    *db_guard = Some(active);
+                    println!("Opened database: {}", name);
                 }
                 Err(_) => {
                     panic!("Problem opening the data file. Create a new database!\nType 'help' to see how");
@@ -43,7 +48,15 @@ pub fn execute(ast: AstNode) {
         }
         
         AstNode::MakeTable { name, columns } => {
-            println!("Created table: {}", name);
+            let db_guard = ACTIVE_DB.lock().unwrap();
+            if let Some(active_db) = &*db_guard {
+                println!("Currently using DB: {}", active_db.active_db.name);
+                //active_db.active_db.table+=1;
+                
+            } else {
+                println!("No database is active.");
+            }
+
             for (col_name, col_type) in columns {
                 println!("Column: {} Type: {}", col_name, col_type);
             }
@@ -93,20 +106,30 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
             AstNode::OpenRDB { name: (name_db) }
         }
 
+        
+
         Rule::make_table => {
-            let mut inner = pair.into_inner();
-            let name = inner.next().unwrap().as_str().to_string();
-            let mut cols = vec![];
-            for def in inner {
-                if def.as_rule() == Rule::att_def {
-                    let mut parts = def.into_inner();
-                    let col_name = parts.next().unwrap().as_str().to_string();
-                    let col_type = parts.next().unwrap().as_str().to_string();
-                    cols.push((col_name, col_type));
+        let mut inner = pair.into_inner();
+        let name = inner.next().unwrap().as_str().to_string();
+        let mut cols = Vec::new();
+
+        for attr_pair in inner {
+            if attr_pair.as_rule() == Rule::attribute {
+                for def in attr_pair.into_inner() {
+                    if def.as_rule() == Rule::att_def {
+                        let mut parts = def.into_inner();
+                        let col_name = parts.next().unwrap().as_str().to_string();
+                        let col_type = parts.next().unwrap().as_str().to_string();
+                        cols.push((col_name, col_type));
+                    }
                 }
             }
-            AstNode::MakeTable { name, columns: cols }
         }
+
+        AstNode::MakeTable { name, columns: cols }
+    }
+
+
         Rule::put => {
             let mut inner_rules = pair.into_inner();
             let table = inner_rules.next().unwrap().as_str().to_string();
@@ -164,3 +187,7 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
         _ => unimplemented!(),
     }
 }
+
+// fn pub makeTable(path:String) {
+//     let file = OpenOptions::new().append(true).open("foo.txt");
+// }

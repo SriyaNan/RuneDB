@@ -22,8 +22,8 @@ pub struct Database{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TableSchema{
-    name: String,
-    attributes: Vec<Attr>,
+    pub name: String,
+    pub attributes: Vec<Attr>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -1,0 +1,8 @@
+fn do_something() {
+    let db_guard = ACTIVE_DB.lock().unwrap();
+    if let Some(active_db) = &*db_guard {
+        println!("Currently using DB: {}", active_db.active_db.name);
+    } else {
+        println!("No database is active.");
+    }
+}
