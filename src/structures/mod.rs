@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::{Write, Read};
 use rmp_serde::{encode, decode};
 use rmp_serde::{from_slice, to_vec};
+use std::collections::HashMap;
 #[derive(Debug)]
 pub enum AstNode {
     MakeRDB {name: String},
@@ -11,6 +12,11 @@ pub enum AstNode {
     Put { table: String, values: Vec<(String, String)> },
     Pick { table: String, columns: Vec<String> },
     ConditionalPick { table: String, columns: Vec<String>, condition: Vec<(String,String,String)> },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct table_info{
+    pub tables: HashMap<String, i32> //this tells the table number which can be used to find the page number (number*4096)
 }
 
 #[derive(Debug, Serialize, Deserialize)]
