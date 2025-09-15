@@ -1,13 +1,13 @@
-main = { make_table | put | pick | conditional_pick | make_rdb | open_rdb}
+main = { make_table | add | pick | conditional_pick | make_rdb | open_rdb}
 
 make_table = { "make table" ~ table_name ~ "(" ~ attribute ~ ")" }
-put = { table_name ~ ".add" ~ "(" ~ assignments ~ ")"}
+add = { table_name ~ ".add" ~ "(" ~ assignments ~ ")"}
 pick = { table_name ~ ".pick" ~ "(" ~ selectives ~ ")"}
 conditional_pick = { table_name ~ ".pick" ~ "((" ~ selectives ~ ")" ~ "where" ~ "(" ~ condition ~ "))" }
 
 table_name = @{ ASCII_ALPHANUMERIC+ }
 assignments = { assignment ~ ("," ~ assignment)* }
-assignment = { att_name ~ "=" ~ value }
+assignment = { value }
 value = @{ASCII_ALPHANUMERIC+}
 
 attribute = { att_def ~ ("," ~ att_def)* }

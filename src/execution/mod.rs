@@ -1,13 +1,11 @@
-use crate::structures::{AstNode, Database, ActiveDataBase, TableSchema, DataType, Attr, table_info};
+use crate::structures::{cell, row, tableRow, table_info, ActiveDataBase, AstNode, Attr, DataType, Database, TableSchema};
 use std::collections::HashMap;
 use std::fs::File;
 use crate::parser::Rule;
 use rmp_serde::from_slice;
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
-
 use std::io::{self, SeekFrom, Seek};
-
 const PAGE_SIZE: usize = 4096;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
@@ -15,9 +13,6 @@ use lazy_static::lazy_static;
 lazy_static! {
     pub static ref ACTIVE_DB: Mutex<Option<ActiveDataBase>> = Mutex::new(None);
 }
-
-
-
 
 fn db_initialise(name: String) -> Database{
     let mut db = Database{
@@ -35,19 +30,55 @@ fn table_initialise() -> table_info {
     return table_info;
 }
 
+fn table_rows() -> tableRow{
+    let rows = tableRow{rows: Vec::new()};
+    return rows;
+}
+
+fn check_validity(row:&row, attributes: &Vec<Attr>) -> bool{
+    if row.cells.len() != attributes.len() {
+        println!("Column count mismatch: expected {}, got {}", attributes.len(), row.cells.len());
+        return false;
+    }
+    else{
+        for (cell, attr) in row.cells.iter().zip(attributes.iter()) {
+        let value = &cell.value;
+
+        match attr.datatype {
+            DataType::Int => {
+                if value.parse::<i32>().is_err() {
+                    println!("Column {} expects Int, got {}", attr.col_name, value);
+                    return false;
+                }
+            }
+            DataType::Bool => {
+                if value.parse::<bool>().is_err() {
+                    println!("Column {} expects a boolean, got {}", attr.col_name, value);
+                    return false;
+                }
+            }
+            DataType::String => {
+                return true;
+            }
+        }
+    }
+
+    true
+    }
+}
+
 pub fn execute(ast: AstNode) {
     match ast {
         AstNode::MakeRDB { name } =>{
             let path = format!("Databases/{}.rdb", name);
             let mut data_file = File::create(&path).expect("creation failed");
-            // At offset 0 — Database struct
+            
             let db = db_initialise(name.clone());
             let db_buf = rmp_serde::to_vec(&db).unwrap();
             data_file.write_all(&db_buf).unwrap();
 
-            // At offset 4096 — table_info
             data_file.seek(SeekFrom::Start(4096)).unwrap();
-            let tbl = table_initialise(); // empty HashMap
+            let tbl = table_initialise(); 
             let tbl_buf = rmp_serde::to_vec(&tbl).unwrap();
             data_file.write_all(&tbl_buf).expect("something went wrong with initialising a database");
             
@@ -72,7 +103,7 @@ pub fn execute(ast: AstNode) {
                     println!("Opened database: {}", name);
                 }
                 Err(_) => {
-                    panic!("Problem opening the data file. Create a new database!\nType 'help' to see how");
+                    println!("Problem opening the data file. Create a new database!\nType 'help' to see how");
                 }
             }
         }
@@ -96,8 +127,6 @@ pub fn execute(ast: AstNode) {
                 let number_of_table = decodeddb.tables;
 
                 decodeddb.tables+=1; //update number of tables
-                
-                
 
                 let mut buf = Vec::new();
                 data_file.read_to_end(&mut buf).unwrap();
@@ -141,7 +170,7 @@ pub fn execute(ast: AstNode) {
 
                 let mut decodedtable: table_info = rmp_serde::from_slice(&table_info).unwrap();
 
-                decodedtable.tables.insert(name, number_of_table+1);
+                decodedtable.tables.insert(name, number_of_table+2);
 
                 let mut data_file = OpenOptions::new()
                     .write(true)
@@ -156,33 +185,133 @@ pub fn execute(ast: AstNode) {
             } else {
                 println!("No database is active.");
             }
-
-            
         }
 
-        AstNode::Put { table, values } => {
+
+
+        AstNode::Add { table, values } => {
             println!("Insert into table: {}", table);
+
             let db_guard = ACTIVE_DB.lock().unwrap();
             if let Some(active_db) = &*db_guard {
                 println!("Currently using DB: {}", active_db.active_db.name);
-                for nm in active_db.table_details{
 
+                let path = format!("Databases/{}.rdb", active_db.active_db.name);
+                let mut data_file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap();
+
+                // --- Read DB metadata ---
+                data_file.seek(SeekFrom::Start(0)).unwrap();
+                let mut db_page = vec![0u8; PAGE_SIZE];
+                let bytes_read = data_file.read(&mut db_page).unwrap();
+                db_page.truncate(bytes_read);
+                let decodeddb: Database = rmp_serde::from_slice(&db_page).unwrap();
+
+                // --- Read table_info from offset 4096 ---
+                data_file.seek(SeekFrom::Start(4096)).unwrap();
+                let mut table_page = vec![0u8; PAGE_SIZE];
+                let table_bytes = data_file.read(&mut table_page).unwrap();
+                table_page.truncate(table_bytes);
+                let decodedtable: table_info = rmp_serde::from_slice(&table_page).unwrap();
+
+                if let Some(&pointer) = decodedtable.tables.get(&table) {
+                    // --- Read existing table data ---
+                    let table_offset = (pointer as u64) * 4096;
+                    data_file.seek(SeekFrom::Start(table_offset)).unwrap();
+                    let mut rows_bytes = vec![0u8; PAGE_SIZE];
+                    let n = data_file.read(&mut rows_bytes).unwrap();
+                    rows_bytes.truncate(n);
+
+                    let mut all_rows: tableRow = if n == 0 {
+                        tableRow { rows: Vec::new() }
+                    } else {
+                        match rmp_serde::from_slice(&rows_bytes) {
+                            Ok(r) => r,
+                            Err(_) => tableRow { rows: Vec::new() } // fallback if corrupted
+                        }
+                    };
+
+                    // --- Construct new row ---
+                    let mut new_row = row { cells: Vec::new() };
+                    for val in values {
+                        println!("Adding: {}", val);
+                        new_row.cells.push(cell { value: val });
+                    }
+
+                    // --- Get schema ---
+                    let details = &decodeddb.table_details;
+                    if let Some(schema) = details.iter().find(|t| t.name == table) {
+                        let attributes = &schema.attributes;
+
+                        println!("Table {} has columns:", table);
+                        for attr in attributes {
+                            println!("{} ({:?})", attr.col_name, attr.datatype);
+                        }
+
+                        // --- Validate and insert ---
+                        if check_validity(&new_row, attributes) {
+                            all_rows.rows.push(new_row);
+                            let updated_bytes = rmp_serde::to_vec(&all_rows).unwrap();
+
+                            data_file.seek(SeekFrom::Start(table_offset)).unwrap();
+                            data_file.set_len(table_offset + updated_bytes.len() as u64).unwrap();
+                            data_file.write_all(&updated_bytes).expect("write failed");
+                            println!("1 Row added");
+                        } else {
+                            println!("Datatype mismatch, row not added");
+                        }
+                    } else {
+                        panic!("Table {} not found in table_details", table);
+                    }
+                } else {
+                    panic!("Table not available, create a table before adding records!");
                 }
-                for (col, val) in values {
-                println!("{} = {}", col, val);
-            }
             } else {
                 println!("No database is active.");
             }
-            
         }
 
         AstNode::Pick { table, columns } => {
             println!("Pick from table: {}", table);
-            for col in columns {
-                println!("Selected column: {}", col);
+            let db_guard = ACTIVE_DB.lock().unwrap();
+            if let Some(active_db) = &*db_guard {
+                println!("Currently using DB: {}", active_db.active_db.name);
+
+                let path = format!("Databases/{}.rdb", active_db.active_db.name);
+                let mut data_file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap();
+                data_file.seek(SeekFrom::Start(0)).unwrap();
+                let mut db_page = vec![0u8; PAGE_SIZE];
+                let bytes_read = data_file.read(&mut db_page).unwrap();
+                db_page.truncate(bytes_read);
+                let decodeddb: Database = rmp_serde::from_slice(&db_page).unwrap();
+
+                let length = columns.len();
+                
+
+
+
+                for (index, element) in columns.iter().enumerate() {
+                        println!("{}:{}", index, element);
+                    }
+                for col in columns {
+                    println!("Selected column: {}", col);
+                }
+        
+
+                 } else {
+                println!("No database is active.");
             }
         }
+            
+
+            
         
         AstNode::ConditionalPick { table, columns, condition } => {
             println!("Conditional Pick from: {}", table);
@@ -239,7 +368,7 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
     }
 
 
-        Rule::put => {
+        Rule::add => {
             let mut inner_rules = pair.into_inner();
             let table = inner_rules.next().unwrap().as_str().to_string();
             let assignments_pair = inner_rules.next().unwrap();
@@ -248,12 +377,11 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
             for assign in assignments_pair.into_inner() {
                 if assign.as_rule() == Rule::assignment {
                     let mut parts = assign.into_inner();
-                    let column = parts.next().unwrap().as_str().to_string();
                     let value = parts.next().unwrap().as_str().to_string();
-                    assignments.push((column, value));
+                    assignments.push(value);
                 }
             }
-            AstNode::Put { table, values: assignments }
+            AstNode::Add { table, values: assignments }
         }
 
 
