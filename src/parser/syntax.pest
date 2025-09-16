@@ -13,7 +13,7 @@ value = @{ASCII_ALPHANUMERIC+}
 attribute = { att_def ~ ("," ~ att_def)* }
 att_def = { att_name ~ ":" ~ datatype }
 att_name = @{ ASCII_ALPHANUMERIC+ }
-datatype = @{ "string" | "int" | "float" }
+datatype = @{ "string" | "int" | "bool" }
 
 selectives = { selective ~ ("," ~ selective)* }
 selective = @{ ASCII_ALPHANUMERIC+ | "*" }

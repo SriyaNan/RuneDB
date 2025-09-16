@@ -67,6 +67,14 @@ fn check_validity(row:&row, attributes: &Vec<Attr>) -> bool{
     }
 }
 
+
+// fn operation(cell: cell, op: String, val: String){
+//      match op{
+
+//      }
+
+// }
+
 pub fn execute(ast: AstNode) {
     match ast {
         AstNode::MakeRDB { name } =>{
@@ -293,33 +301,171 @@ pub fn execute(ast: AstNode) {
                 let decodeddb: Database = rmp_serde::from_slice(&db_page).unwrap();
 
                 let length = columns.len();
+                let alltables = decodeddb.table_details;
+
+                print!("{:#?}",alltables[0].attributes);
+                let mut i:i32 = -1;
+                for k in alltables.iter(){
+                    i+=1;
+                    if k.name == table{
+                        break;
+                    }
+                }
+
+                let mut indexes:Vec<usize> = Vec::new();
+
+                if i==-1{
+                    print!("Table not found")
+                }else{
+                    if let Some(table_picked) = alltables.get((i) as usize) {
+                        for (index, attribute) in table_picked.attributes.iter().enumerate() {
+                            if columns.contains(&attribute.col_name) {
+                                println!("Found {}", attribute.col_name);
+                                indexes.push(index);
+                            }
+                        }
+
+                            print!("{:#?}", indexes);
+                    } else {
+                        println!("No table found at index {}", i);
+                    }
+                }
                 
 
+                data_file.seek(SeekFrom::Start(PAGE_SIZE as u64)).unwrap();
+                let mut table_page = vec![0u8; PAGE_SIZE];
+                let table_bytes = data_file.read(&mut table_page).unwrap();
+                table_page.truncate(table_bytes);
+                let decodedtable: table_info = rmp_serde::from_slice(&table_page).unwrap();
+                let pointer = decodedtable.tables[&table];
 
+                let table_offset = (pointer as u64) * 4096;
+                data_file.seek(SeekFrom::Start(table_offset)).unwrap();
+                let mut rows_bytes = vec![0u8; PAGE_SIZE];
+                let n = data_file.read(&mut rows_bytes).unwrap();
+                rows_bytes.truncate(n);
+                let table_rows: tableRow = rmp_serde::from_slice(&rows_bytes).unwrap();
+                print!("{:#?}", table_rows);
 
-                for (index, element) in columns.iter().enumerate() {
-                        println!("{}:{}", index, element);
-                    }
-                for col in columns {
-                    println!("Selected column: {}", col);
+                for name in &columns {
+                    print!("{:<10}", name); 
                 }
-        
-
+                println!();
+                println!("{}", "-".repeat(columns.len() * 10));
+                for (index, element) in table_rows.rows.iter().enumerate() {
+                    for &col in &indexes {
+                        if let Some(cell) = element.cells.get(col) {
+                            print!("{:<10}", cell.value);
+                        }
+                    }
+                    println!();
+                }
                  } else {
                 println!("No database is active.");
             }
         }
-            
+         
+        AstNode::ConditionalPick { table, columns, att , oper , val } => {
+            println!("Pick from table: {}", table);
+            print!("{:#?}",att);
+            let db_guard = ACTIVE_DB.lock().unwrap();
+            if let Some(active_db) = &*db_guard {
+                println!("Currently using DB: {}", active_db.active_db.name);
 
-            
-        
-        AstNode::ConditionalPick { table, columns, condition } => {
-            println!("Conditional Pick from: {}", table);
-            println!("Columns: {:?}", columns);
-            println!("Conditions:");
-            for (attr, op, val) in condition {
-                println!("{} {} {}", attr, op, val);
+                let path = format!("Databases/{}.rdb", active_db.active_db.name);
+                let mut data_file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&path)
+                    .unwrap();
+                data_file.seek(SeekFrom::Start(0)).unwrap();
+                let mut db_page = vec![0u8; PAGE_SIZE];
+                let bytes_read = data_file.read(&mut db_page).unwrap();
+                db_page.truncate(bytes_read);
+                let decodeddb: Database = rmp_serde::from_slice(&db_page).unwrap();
+
+                let length = columns.len();
+                let alltables = decodeddb.table_details;
+
+                let mut i:i32 = -1;
+                for k in alltables.iter(){
+                    i+=1;
+                    if k.name == table{
+                        break;
+                    }
+                }
+
+                let mut indexes:Vec<usize> = Vec::new();
+
+                let mut cond: Vec<usize> = Vec::new();
+                if i==-1{
+                    print!("Table not found")
+                }else{
+                    if let Some(table_picked) = alltables.get((i) as usize) {
+                        for (index, attribute) in table_picked.attributes.iter().enumerate() {
+                            if columns.contains(&attribute.col_name) {
+                                println!("Found {}", attribute.col_name);
+                                indexes.push(index);
+                            }
+                        }
+                    } else {
+                        println!("No table found at index {}", i);
+                    }
+
+                    if let Some(table_picked) = alltables.get((i) as usize) {
+                        for (index, attribute) in table_picked.attributes.iter().enumerate() {
+                            if att.contains(&attribute.col_name) {
+                                println!("Found {}", attribute.col_name);
+                                cond.push(index);
+                            }
+                        }
+                    } else {
+                        println!("No table found at index {}", i);
+                    }
+
+
+                }
+
+                
+
+                data_file.seek(SeekFrom::Start(PAGE_SIZE as u64)).unwrap();
+                let mut table_page = vec![0u8; PAGE_SIZE];
+                let table_bytes = data_file.read(&mut table_page).unwrap();
+                table_page.truncate(table_bytes);
+                let decodedtable: table_info = rmp_serde::from_slice(&table_page).unwrap();
+                let pointer = decodedtable.tables[&table];
+
+                let table_offset = (pointer as u64) * 4096;
+                data_file.seek(SeekFrom::Start(table_offset)).unwrap();
+                let mut rows_bytes = vec![0u8; PAGE_SIZE];
+                let n = data_file.read(&mut rows_bytes).unwrap();
+                rows_bytes.truncate(n);
+                let table_rows: tableRow = rmp_serde::from_slice(&rows_bytes).unwrap();
+                print!("{:#?}", table_rows);
+
+                for name in &columns {
+                    print!("{:<10}", name); 
+                }
+                println!();
+                println!("{}", "-".repeat(columns.len() * 10));
+                for (index, element) in table_rows.rows.iter().enumerate() {
+                    let mut currcells: Vec<cell> = Vec::new();
+
+                    for &col in &indexes {
+                        if let Some(c) = element.cells.get(col) {
+                            currcells.push(cell { value: c.value.clone() });
+                        }
+                    }
+
+                    let currrow = row { cells: currcells };
+                    println!("{:#?}",currrow);
+                }
+
+                
+                 } else {
+                println!("No database is active.");
             }
+
         }
     }
 }
@@ -411,17 +557,22 @@ pub fn build_ast(pair: pest::iterators::Pair<Rule>) -> AstNode {
             }
 
             let which_cond = inner_cond.next().unwrap();
-            let mut conditions = Vec::new();
+            let mut attri:Vec<String> = Vec::new();
+            let mut oper = Vec::new();
+            let mut values = Vec::new();
+
             for cond in which_cond.into_inner() {
                 if cond.as_rule() == Rule::cond {
                     let mut parts = cond.into_inner();
                     let attr = parts.next().unwrap().as_str().to_string();
                     let op = parts.next().unwrap().as_str().to_string();
                     let val = parts.next().unwrap().as_str().to_string();
-                    conditions.push((attr, op, val));
+                    attri.push(attr);
+                    oper.push(op);
+                    values.push(val);
                 }
             }
-            AstNode::ConditionalPick { table, columns: picked, condition: conditions }
+            AstNode::ConditionalPick { table, columns: picked, att: attri, oper: oper, val: values }
         }
         _ => unimplemented!(),
     }

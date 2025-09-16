@@ -11,7 +11,7 @@ pub enum AstNode {
     MakeTable { name: String, columns: Vec<(String, String)> },
     Add { table: String, values: Vec<String> },
     Pick { table: String, columns: Vec<String> },
-    ConditionalPick { table: String, columns: Vec<String>, condition: Vec<(String,String,String)> },
+    ConditionalPick { table: String, columns: Vec<String>, att: Vec<String>, oper:Vec<String>, val: Vec<String>},
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,17 +19,17 @@ pub struct table_info{
     pub tables: HashMap<String, i32> //this tells the table number which can be used to find the page number (number*4096)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct tableRow {
     pub rows: Vec<row>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct row {
     pub cells: Vec<cell>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct cell {
     pub value: String,
 }
@@ -60,24 +60,8 @@ pub enum DataType{
     Bool, 
 }
 
-// use std::collections::HashMap;
 
-// const PAGE_SIZE: usize= 4096;
-// #[derive(Debug)]
-// pub struct Page{
-//     pub id: u32,
-//     pub data: [u8; PAGE_SIZE],
-// }
 
-// #[derive(Debug,Serialize, Deserialize)]
-// pub struct LookUp{
-    
-// }
-
-// #[derive(Debug)]
-// pub struct Hashmap{
-//     map: HashMap<u32,u64>,
-// }
 
 #[derive(Debug)]
 pub struct ActiveDataBase{

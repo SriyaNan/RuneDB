@@ -54,7 +54,7 @@ Note: nested AND/OR conditions not yet supported.";
         let inner_command = parse_result.into_inner().next().unwrap();
         
         let ast = build_ast(inner_command);
-        print!("{:#?}\n", ast);
+        //print!("{:#?}\n", ast);
         execute(ast);
         // const PAGE_SIZE: usize = 4096;
 
