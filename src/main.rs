@@ -1,17 +1,12 @@
 mod parser;
-use crate::structures::{Database, TableSchema, Attr, DataType};
-use rmp_serde::from_slice;
 use crate::structures::ActiveDataBase;
 pub mod execution;
 mod structures;
-use std::io::{Read, Write};
+use std::io::{self, Write};
 use crate::parser::parse_input;
 use execution::{execute, build_ast};
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::{self, SeekFrom, Seek};
 
 lazy_static! {
     pub static ref ACTIVE_DB: Mutex<Option<ActiveDataBase>> = Mutex::new(None);
@@ -56,44 +51,7 @@ Note: nested AND/OR conditions not yet supported.";
         let ast = build_ast(inner_command);
         //print!("{:#?}\n", ast);
         execute(ast);
-        // const PAGE_SIZE: usize = 4096;
-
-        // let name = "sriya";
-        // let path = format!("Databases/{}.rdb", name);
-        // let mut data_file = File::open(&path).unwrap();
-
-        // let mut buffer = [0u8; PAGE_SIZE];
-
-        // data_file.seek(SeekFrom::Start(0)).unwrap();
-        // data_file.read(&mut buffer).unwrap();
-
-        // println!("{:?}", &buffer[..64]);
-        // let mut buf = Vec::new();
-        // data_file.read_to_end(&mut buf).unwrap();
-
-        // let new_attr: Attr = Attr {col_name: "sno".to_string(), datatype: DataType::Int};
-        // let mut table_new :TableSchema = TableSchema{
-        //     name: "sriya".to_string(),
-        //     attributes: Vec::new(),
-        // };
-
-        // table_new.attributes.push(new_attr);
-
-        // let mut decoded: Database = from_slice(&buf).unwrap();
-        // decoded.tables+=1;
-        // decoded.table_details.push(table_new);
-        // println!("{:#?}", decoded);
-        //  let mut data_file = OpenOptions::new()
-        // .write(true)
-        // .truncate(true)
-        // .open(&path)
-        // .unwrap();
-
-        // let newentry = rmp_serde::to_vec(&decoded).unwrap();
-        // data_file.write_all(&newentry).expect("write failed");
-
-
-
+        
     }
 }
 
