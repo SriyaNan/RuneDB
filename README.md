@@ -46,7 +46,7 @@ Run the project<br>
 <h4>Syntax</h4>
 ▫️Create a new Database: make rdb database-name<br>
 ▫️Create a table: make table table-name( attr-name : datatype, ... )<br>
-  ▫️Insert rows: table-name.add( <attr-name> = value, ... )<br>
+  ▫️Insert rows: table-name.add(value, ... )<br>
  ▫️Select columns: table-name.pick( attr-name, ... )<br>
  ▫️Select with condition: table-name.pick( (attr-name, ... ) where ( attr-name = value, ... ) )<br>
 
