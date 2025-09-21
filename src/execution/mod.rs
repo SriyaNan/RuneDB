@@ -11,6 +11,7 @@ use std::io::{Seek, SeekFrom};
 const PAGE_SIZE: usize = 4096;
 use lazy_static::lazy_static;
 use std::sync::Mutex;
+use std::fs;
 
 lazy_static! {
     pub static ref ACTIVE_DB: Mutex<Option<ActiveDataBase>> = Mutex::new(None);
@@ -32,10 +33,6 @@ fn table_initialise() -> TableInfo {
     return table_info;
 }
 
-// fn table_rows() -> TableRow{
-//     let rows = TableRow{rows: Vec::new()};
-//     return rows;
-// }
 
 fn check_validity(row: &Row, attributes: &Vec<Attr>) -> bool {
     if row.cells.len() != attributes.len() {
@@ -95,6 +92,9 @@ fn operation(cell: &Cell, op: Operation, val: String) -> bool {
 pub fn execute(ast: AstNode) {
     match ast {
         AstNode::MakeRDB { name } => {
+            let dir = "Databases";
+            fs::create_dir_all(dir).expect("failed to create Databases directory");
+
             let path = format!("Databases/{}.rdb", name);
             let mut data_file = File::create(&path).expect("creation failed");
 
