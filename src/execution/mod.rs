@@ -367,7 +367,7 @@ pub fn execute(ast: AstNode) {
             val,
         } => {
             println!("Pick from table: {}", table);
-            print!("{:#?}", att);
+          
             let db_guard = ACTIVE_DB.lock().unwrap();
             if let Some(active_db) = &*db_guard {
                 println!("Database: {}", active_db.active_db.name);
