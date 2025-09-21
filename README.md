@@ -33,7 +33,7 @@ This project requires the following dependencies:<br>
 ▫️Package Manager: Cargo<br>
 
 <h5>Installation</h5>
-▫️Build RuneDB from the source and install dependencies:<br>
+▫️Option 1: Build RuneDB from the source and install dependencies:<br>
 Clone the repository<br>
 <pre lang="md">git clone https://github.com/SriyaNan/RuneDB</pre>
 Navigate to the project directory<br>
@@ -42,6 +42,13 @@ Using cargo<br>
 <pre lang="md">cargo build</pre>
 Run the project<br>
 <pre lang="md">cargo run</pre>
+
+▫️Option 2: Download from crates.io<br>
+<a href="https://crates.io/crates/RuneDB">Go to this link!</a><br>
+In your command prompt
+<pre lang="md">cargo install RuneDB</pre>
+To run it
+<pre lang="md">RuneDB</pre>
 
 <h4>Syntax</h4>
 ▫️Create a new Database: make rdb database-name<br>
