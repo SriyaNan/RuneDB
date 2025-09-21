@@ -2,6 +2,9 @@
 name = "RuneDB"
 version = "0.1.0"
 edition = "2024"
+description = "A lightweight database built in Rust"
+license = "MIT"
+repository = "https://github.com/yourusername/sriyadb"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
